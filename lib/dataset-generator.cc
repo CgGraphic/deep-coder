@@ -146,7 +146,7 @@ experimental::optional<Dataset> generate_dataset(
             auto &data = *async_dataset.back();
             auto id = async_dataset.size();
             data.dataset = std::async(std::launch::async,
-                                      [r, calc_info, dataset_size, example_per_program, p, i, id, &data]() {
+                                      [r, calc_info, &dataset_size, &example_per_program, p, i, &id, &data]() {
                                           DatasetForOneInputType d;
                                           enumerate(
                                                   r, calc_info,

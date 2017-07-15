@@ -1,8 +1,20 @@
 #include <vector>
 #include <string>
 #include <cstdint>
-#include <experimental/optional>
 
+#if defined(_MSC_VER) && (_MSC_VER >1900)
+#include <optional>
+namespace std
+{
+	namespace experimental
+	{
+		template<class T>
+		using optional = std::optional<T>;
+	};
+};
+#else
+#include <experimental/optional.hpp>
+#endif
 #pragma once
 
 namespace dsl {
