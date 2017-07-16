@@ -120,13 +120,17 @@ namespace dsl {
 
     std::ostream &operator<<(std::ostream &stream, const Argument &argument) {
         if (argument.one_argument_lambda()) {
-            stream << stringify(argument.one_argument_lambda().value());
+			auto val = argument.one_argument_lambda().value();
+            stream << stringify(val);
         } else if (argument.two_arguments_lambda()) {
-            stream << stringify(argument.two_arguments_lambda().value());
+			auto val = argument.two_arguments_lambda().value();
+            stream << stringify(val);
         } else if (argument.predicate()) {
-            stream << stringify(argument.predicate().value());
+			auto val = argument.predicate().value();
+            stream << stringify(val);
         } else if (argument.variable()) {
-            stream << stringify(argument.variable().value());
+			auto val = argument.variable().value();
+            stream << stringify(val);
         }
 
         return stream;

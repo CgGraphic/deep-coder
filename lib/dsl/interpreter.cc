@@ -79,7 +79,8 @@ namespace dsl {
 
     Value eval(Function function, const vector<Argument> &arguments, Environment &environment) {
         if (function == Function::Head) {
-            auto arg = environment.variables.find(arguments[0].variable().value())->second;
+			auto val = arguments[0].variable().value();
+            auto arg = environment.variables.find(val)->second;
 
             if (arg.list()) {
                 auto l = arg.list().value();
@@ -88,7 +89,8 @@ namespace dsl {
                 return Value();
             }
         } else if (function == Function::Last) {
-            auto arg = environment.variables.find(arguments[0].variable().value())->second;
+			auto val = arguments[0].variable().value();
+			auto arg = environment.variables.find(val)->second;
 
             if (arg.list()) {
                 auto l = arg.list().value();
@@ -97,8 +99,11 @@ namespace dsl {
                 return Value();
             }
         } else if (function == Function::Take) {
-            auto n = environment.variables.find(arguments[0].variable().value())->second;
-            auto list = environment.variables.find(arguments[1].variable().value())->second;
+			auto val0 = arguments[0].variable().value();
+			auto val1 = arguments[1].variable().value();
+            auto n = environment.variables.find(val0)->second;
+			
+            auto list = environment.variables.find(val1)->second;
 
             if (n.integer() && list.list()) {
                 auto l = list.list().value();
@@ -118,8 +123,10 @@ namespace dsl {
                 return Value();
             }
         } else if (function == Function::Drop) {
-            auto n = environment.variables.find(arguments[0].variable().value())->second;
-            auto list = environment.variables.find(arguments[1].variable().value())->second;
+			auto val0 = arguments[0].variable().value();
+			auto val1 = arguments[1].variable().value();
+			auto n = environment.variables.find(val0)->second;
+            auto list = environment.variables.find(val1)->second;
 
             if (n.integer() && list.list()) {
                 auto l = list.list().value();
@@ -141,8 +148,10 @@ namespace dsl {
                 return Value();
             }
         } else if (function == Function::Access) {
-            auto n = environment.variables.find(arguments[0].variable().value())->second;
-            auto list = environment.variables.find(arguments[1].variable().value())->second;
+			auto val0 = arguments[0].variable().value();
+			auto val1 = arguments[1].variable().value();
+            auto n = environment.variables.find(val0)->second;
+            auto list = environment.variables.find(val1)->second;
 
             if (n.integer() && list.list()) {
                 auto l = list.list().value();
@@ -153,7 +162,8 @@ namespace dsl {
                 return Value();
             }
         } else if (function == Function::Minimum) {
-            auto arg = environment.variables.find(arguments[0].variable().value())->second;
+			auto val0 = arguments[0].variable().value();
+            auto arg = environment.variables.find(val0)->second;
 
             if (arg.list()) {
                 auto l = arg.list().value();
@@ -166,7 +176,8 @@ namespace dsl {
                 return Value();
             }
         } else if (function == Function::Maximum) {
-            auto arg = environment.variables.find(arguments[0].variable().value())->second;
+			auto val0 = arguments[0].variable().value();
+            auto arg = environment.variables.find(val0)->second;
 
             if (arg.list()) {
                 auto l = arg.list().value();
@@ -179,7 +190,8 @@ namespace dsl {
                 return Value();
             }
         } else if (function == Function::Reverse) {
-            auto arg = environment.variables.find(arguments[0].variable().value())->second;
+			auto val0 = arguments[0].variable().value();
+            auto arg = environment.variables.find(val0)->second;
 
             if (arg.list()) {
                 auto l = arg.list().value();
@@ -189,7 +201,8 @@ namespace dsl {
                 return Value();
             }
         } else if (function == Function::Sort) {
-            auto arg = environment.variables.find(arguments[0].variable().value())->second;
+			auto val0 = arguments[0].variable().value();
+            auto arg = environment.variables.find(val0)->second;
 
             if (arg.list()) {
                 auto l = arg.list().value();
@@ -199,7 +212,8 @@ namespace dsl {
                 return Value();
             }
         } else if (function == Function::Sum) {
-            auto arg = environment.variables.find(arguments[0].variable().value())->second;
+			auto val0 = arguments[0].variable().value();
+			auto arg = environment.variables.find(val0)->second;
 
             if (arg.list()) {
                 auto l = arg.list().value();
@@ -210,7 +224,8 @@ namespace dsl {
             }
         } else if (function == Function::Map) {
             auto lambda = arguments[0].one_argument_lambda().value();
-            auto list = environment.variables.find(arguments[1].variable().value())->second;
+			auto val1 = arguments[1].variable().value();
+            auto list = environment.variables.find(val1)->second;
 
             if (list.list()) {
                 auto l = list.list().value();
@@ -225,7 +240,8 @@ namespace dsl {
             }
         } else if (function == Function::Filter) {
             auto lambda = arguments[0].predicate().value();
-            auto list = environment.variables.find(arguments[1].variable().value())->second;
+			auto val1 = arguments[1].variable().value();
+            auto list = environment.variables.find(val1)->second;
 
             if (list.list()) {
                 auto l = list.list().value();
@@ -245,7 +261,8 @@ namespace dsl {
             }
         } else if (function == Function::Count) {
             auto lambda = arguments[0].predicate().value();
-            auto list = environment.variables.find(arguments[1].variable().value())->second;
+			auto val1 = arguments[1].variable().value();
+            auto list = environment.variables.find(val1)->second;
 
             if (list.list()) {
                 auto l = list.list().value();
@@ -263,8 +280,10 @@ namespace dsl {
             }
         } else if (function == Function::ZipWith) {
             auto lambda = arguments[0].two_arguments_lambda().value();
-            auto list1 = environment.variables.find(arguments[1].variable().value())->second;
-            auto list2 = environment.variables.find(arguments[2].variable().value())->second;
+			auto val1 = arguments[1].variable().value();
+			auto val2 = arguments[2].variable().value();
+            auto list1 = environment.variables.find(val1)->second;
+            auto list2 = environment.variables.find(val2)->second;
 
             if (list1.list() && list2.list()) {
                 auto l1 = list1.list().value();
@@ -282,7 +301,8 @@ namespace dsl {
             }
         } else if (function == Function::Scanl1) {
             auto lambda = arguments[0].two_arguments_lambda().value();
-            auto list = environment.variables.find(arguments[1].variable().value())->second;
+			auto val1 = arguments[1].variable().value();
+            auto list = environment.variables.find(val1)->second;
 
             if (list.list()) {
                 auto l = list.list().value();

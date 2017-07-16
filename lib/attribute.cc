@@ -42,11 +42,14 @@ Attribute::Attribute(const dsl::Program &program) {
         this->function_presence[s.function] = 1;
         for (const auto& arg: s.arguments) {
             if (arg.predicate()) {
-                this->predicate_presence[arg.predicate().value()] = 1;
+				auto val = arg.predicate().value();
+                this->predicate_presence[val] = 1;
             } else if (arg.one_argument_lambda()) {
-                this->one_argument_lambda_presence[arg.one_argument_lambda().value()] = 1;
+				auto val = arg.one_argument_lambda().value();
+                this->one_argument_lambda_presence[val] = 1;
             } else if (arg.two_arguments_lambda()) {
-                this->two_arguments_lambda_presence[arg.two_arguments_lambda().value()] = 1;
+				auto val = arg.two_arguments_lambda().value();
+                this->two_arguments_lambda_presence[val] = 1;
             }
         }
     }

@@ -12,7 +12,8 @@ namespace dsl {
         } else if (argument.predicate()) {
             return Type::PredicateLambda;
         } else if (argument.variable()) {
-            auto it = env.find(argument.variable().value());
+			auto val = argument.variable().value();
+            auto it = env.find(val);
             if (it != env.end()) {
                 return it->second;
             }

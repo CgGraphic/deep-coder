@@ -51,10 +51,10 @@ void output_attribute(const Attribute &attr) {
 }
 
 int main(int argc, char **argv) {
-    size_t max_length = 3;
+    size_t max_length = 1;
     size_t dataset_size = 0;
     size_t example_pair_per_program = 1;
-
+	 
     if (argc >= 2) {
         max_length = atoi(argv[1]);
     }
