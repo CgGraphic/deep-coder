@@ -51,7 +51,7 @@ void output_attribute(const Attribute &attr) {
 }
 
 int main(int argc, char **argv) {
-    size_t max_length = 4;
+    size_t max_length = 3;
     size_t dataset_size = 0;
     size_t example_pair_per_program = 1;
 

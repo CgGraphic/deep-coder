@@ -13,8 +13,10 @@
 
 ## header files
 !*.h
+!*.hpp
 !include
 !include/dsl
+!include/experimental
 
 ## Other files
 !.gitignore
