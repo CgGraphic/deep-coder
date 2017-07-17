@@ -223,7 +223,9 @@ namespace dsl {
                 return Value();
             }
         } else if (function == Function::Map) {
+			//std::cout << arguments[0].Val() << endl;
             auto lambda = arguments[0].one_argument_lambda().value();
+			//std::cout << (uint32_t)lambda << endl;
 			auto val1 = arguments[1].variable().value();
             auto list = environment.variables.find(val1)->second;
 

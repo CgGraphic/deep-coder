@@ -49,9 +49,33 @@ void output_attribute(const Attribute &attr) {
     }
     cout << "]";
 }
+void func(const Argument& argument, const TypeEnvironment& env)
+{
+	auto it = env.find(argument.variable().value());
+	if (it == env.end())
+	{
+		std::cout << "NO" << endl;
+	}
+	else
+		std::cout << "Yes" << endl;
+}
 
 int main(int argc, char **argv) {
-    size_t max_length = 1;
+
+	///Test
+	//TypeEnvironment env;
+	//Variable var = { 0 };
+	//env.insert({ var,dsl::Type::Integer });
+
+	//Argument arg(var);
+
+	//func(arg, env);
+
+	///Test end
+
+
+
+    size_t max_length = 2;
     size_t dataset_size = 0;
     size_t example_pair_per_program = 1;
 	 
@@ -69,9 +93,10 @@ int main(int argc, char **argv) {
     auto dataset = generate_dataset(1, max_length, dataset_size, example_pair_per_program * EXAMPLE_NUM);
 
     cout << "[\n";
+	long long int cnt = 0;
     if (dataset) {
         auto x = dataset.value();
-        long long int cnt = 0;
+       
         for (const auto &p: x.programs) {
             cnt += 1;
             const auto &program = p.first;
@@ -110,6 +135,6 @@ int main(int argc, char **argv) {
         cerr << "Fail to generate dataset" << endl;
     }
     cout << "]" << endl;
-
+	cout << "Total# " << cnt << endl;
     return 0;
 }

@@ -145,54 +145,58 @@ experimental::optional<Dataset> generate_dataset(
             async_dataset.push_back(make_unique<AsyncDataset>());
             auto &data = *async_dataset.back();
             auto id = async_dataset.size();
-            data.dataset = std::async(std::launch::async,
-                                      [r, calc_info, &dataset_size, &example_per_program, p, i, &id, &data]() {
-                                          DatasetForOneInputType d;
-                                          enumerate(
-                                                  r, calc_info,
-                                                  [&dataset_size, &example_per_program, &d, &data, &id](const Program &p,
-                                                                                                   const int &i) -> bool {
-                                                      // Check program
-                                                      //// Unused program
-                                                      if (has_unused_variable(p)) {
-                                                          return true;
-                                                      }
+			auto f = [r, calc_info, &dataset_size, &example_per_program, p, i, &id, &data]() {
+				DatasetForOneInputType d;
+				enumerate(
+					r, calc_info,
+					[&dataset_size, &example_per_program, &d, &data, &id](const Program &p,
+						const int &i) -> bool {
+					// Check program
+					//// Unused program
+					if (has_unused_variable(p)) {
+						return true;
+					}
 
-                                                      // Generate example
-                                                      auto examples_ = generate_examples(p, example_per_program);
+					// Generate example
+					auto examples_ = generate_examples(p, example_per_program);
 
-                                                      if (!examples_) {
-                                                          cerr << "Fail to generate examples" << endl;
-                                                          return true;
-                                                      }
+					if (!examples_) {
+						cerr << "Fail to generate examples" << endl;
+						return true;
+					}
 
-                                                      auto examples = examples_.value();
-                                                      d.insert(p, examples);
+					auto examples = examples_.value();
+					d.insert(p, examples);
 
-                                                      //cerr << "Generating dataset... (" << id << ") " << d.size;
-                                                      //if (dataset_size != 0) {
-                                                      //    cerr << " / " << dataset_size;
-                                                      //}
-                                                      //cerr << endl;
+					//cerr << "Generating dataset... (" << id << ") " << d.size;
+					//if (dataset_size != 0) {
+					//    cerr << " / " << dataset_size;
+					//}
+					//cerr << endl;
 
-                                                      data.size.store(d.size);
+					data.size.store(d.size);
 
-                                                      if (data.abort.load()) {
-                                                          return false;
-                                                      }
+					if (data.abort.load()) {
+						return false;
+					}
 
-                                                      if (dataset_size == 0) {
-                                                          return true;
-                                                      } else {
-                                                          return d.size < dataset_size;
-                                                      }
-                                                  },
-                                                  p, i
-                                          );
+					if (dataset_size == 0) {
+						return true;
+					}
+					else {
+						return d.size < dataset_size;
+					}
+				},
+					p, i
+					);
 
 
-                                          return d;
-                                      });
+				return d;
+			};
+
+
+			data.dataset = std::async(std::launch::async,f);
+				
             return true;
         },
         0

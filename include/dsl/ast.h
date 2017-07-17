@@ -51,6 +51,11 @@ namespace dsl {
         std::experimental::optional<TwoArgumentsLambda> two_arguments_lambda() const;
         std::experimental::optional<OneArgumentLambda> one_argument_lambda() const;
         std::experimental::optional<Variable> variable() const;
+
+		uint32_t Val() const
+		{
+			return m_argument;
+		}
     private:
         uint32_t m_argument;
     };
