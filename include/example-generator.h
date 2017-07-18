@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_set>
 #include <unordered_map>
+#include <set>
 #include "dsl/ast.h"
 #include "dsl/interpreter.h"
 
@@ -27,8 +28,8 @@ struct ListConstraint {
     std::experimental::optional<int> max_length;
     std::experimental::optional<int> min;
     std::experimental::optional<int> max;
-    std::unordered_set<std::experimental::optional<Sign>> sign;
-    std::unordered_set<std::experimental::optional<bool>> is_even;
+    std::set<std::experimental::optional<Sign>> sign;
+    std::set<std::experimental::optional<bool>> is_even;
 
     ListConstraint();
     IntegerConstraint generate_integer_constraint() const;

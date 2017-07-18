@@ -9,10 +9,10 @@ using namespace std;
 using namespace dsl;
 
 void output_value(const Value &value) {
-    if (value.integer()) {
-        cout << value.integer().value();
+    if (OptExists(value.integer())) {
+        cout << OptValue(value.integer());
     } else {
-        auto l = value.list().value();
+        auto l = OptValue(value.list());
         cout << "[";
         for (auto i = 0; i < l.size(); i++) {
             auto x = l.at(i);
@@ -51,7 +51,7 @@ void output_attribute(const Attribute &attr) {
 }
 void func(const Argument& argument, const TypeEnvironment& env)
 {
-	auto it = env.find(argument.variable().value());
+	auto it = env.find(OptValue(argument.variable()));
 	if (it == env.end())
 	{
 		std::cout << "NO" << endl;
@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
 
 
 
-    size_t max_length = 2;
+    size_t max_length = 1;
     size_t dataset_size = 0;
     size_t example_pair_per_program = 1;
 	 
@@ -94,8 +94,8 @@ int main(int argc, char **argv) {
 
     cout << "[\n";
 	long long int cnt = 0;
-    if (dataset) {
-        auto x = dataset.value();
+    if (OptExists(dataset)) {
+        auto x = OptValue(dataset);
        
         for (const auto &p: x.programs) {
             cnt += 1;

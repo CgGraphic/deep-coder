@@ -48,7 +48,7 @@ namespace dsl {
 
     std::experimental::optional<int> Value::integer() const {
         if (this->type == Type::Integer && this->result.size() >= 1) {
-            return this->result[0];
+            return Optional(this->result[0]);
         } else {
             return {};
         }
@@ -56,7 +56,7 @@ namespace dsl {
 
     std::experimental::optional<std::vector<int>> Value::list() const {
         if (this->type == Type::List) {
-            return this->result;
+            return Optional(this->result);
         } else {
             return {};
         }
@@ -78,6 +78,7 @@ namespace dsl {
             : variables(variables), input(input), offset(0) {}
 
     Value eval(Function function, const vector<Argument> &arguments, Environment &environment) {
+#ifdef USE_OPTION
         if (function == Function::Head) {
 			auto val = arguments[0].variable().value();
             auto arg = environment.variables.find(val)->second;
@@ -339,6 +340,269 @@ namespace dsl {
             return value.list() ? value : Value();
         }
         return Value();
+#else
+        if (function == Function::Head) {
+			auto val = arguments[0].variable().second;
+            auto arg = environment.variables.find(val)->second;
+
+            if (arg.list().first) {
+                auto l = arg.list().second;
+                return (l.size() == 0) ? Value() : Value(l[0]);
+            } else {
+                return Value();
+            }
+        } else if (function == Function::Last) {
+			auto val = arguments[0].variable().second;
+			auto arg = environment.variables.find(val)->second;
+
+            if (arg.list().first) {
+                auto l = arg.list().second;
+                return (l.size() == 0) ? Value() : Value(l[l.size() - 1]);
+            } else {
+                return Value();
+            }
+        } else if (function == Function::Take) {
+			auto val0 = arguments[0].variable().second;
+			auto val1 = arguments[1].variable().second;
+            auto n = environment.variables.find(val0)->second;
+			
+            auto list = environment.variables.find(val1)->second;
+
+            if (n.integer().first && list.list().first) {
+                auto l = list.list().second;
+
+                if (n.integer().second < 0) {
+                    return Value(vector<int>());
+                }
+
+                auto num = min(static_cast<size_t>(n.integer().second), l.size());
+                vector<int> retval;
+                retval.reserve(num);
+                for (auto i = 0; i < num; i++) {
+                    retval.push_back(l[i]);
+                }
+                return Value(retval);
+            } else {
+                return Value();
+            }
+        } else if (function == Function::Drop) {
+			auto val0 = arguments[0].variable().second;
+			auto val1 = arguments[1].variable().second;
+			auto n = environment.variables.find(val0)->second;
+            auto list = environment.variables.find(val1)->second;
+
+            if (n.integer().first && list.list().first) {
+                auto l = list.list().second;
+
+                if (n.integer().second < 0) {
+                    return Value(vector<int>());
+                }
+
+                auto num = static_cast<size_t>(n.integer().second);
+                vector<int> retval;
+                if (l.size() > num) {
+                    retval.reserve(l.size() - num);
+                }
+                for (auto i = num; i < l.size(); i++) {
+                    retval.push_back(l[i]);
+                }
+                return Value(retval);
+            } else {
+                return Value();
+            }
+        } else if (function == Function::Access) {
+			auto val0 = arguments[0].variable().second;
+			auto val1 = arguments[1].variable().second;
+            auto n = environment.variables.find(val0)->second;
+            auto list = environment.variables.find(val1)->second;
+
+            if (n.integer().first && list.list().first) {
+                auto l = list.list().second;
+                auto i = static_cast<size_t>(n.integer().second);
+
+                return (0 <= i && i < l.size()) ? Value(l[i]) : Value();
+            } else {
+                return Value();
+            }
+        } else if (function == Function::Minimum) {
+			auto val0 = arguments[0].variable().second;
+            auto arg = environment.variables.find(val0)->second;
+
+            if (arg.list().first) {
+                auto l = arg.list().second;
+                if (l.size() == 0) {
+                    return Value();
+                }
+
+                return *(min_element(l.begin(), l.end()));
+            } else {
+                return Value();
+            }
+        } else if (function == Function::Maximum) {
+			auto val0 = arguments[0].variable().second;
+            auto arg = environment.variables.find(val0)->second;
+
+            if (arg.list().first) {
+                auto l = arg.list().second;
+                if (l.size() == 0) {
+                    return Value();
+                }
+
+                return *(max_element(l.begin(), l.end()));
+            } else {
+                return Value();
+            }
+        } else if (function == Function::Reverse) {
+			auto val0 = arguments[0].variable().second;
+            auto arg = environment.variables.find(val0)->second;
+
+            if (arg.list().first) {
+                auto l = arg.list().second;
+                reverse(l.begin(), l.end());
+                return l;
+            } else {
+                return Value();
+            }
+        } else if (function == Function::Sort) {
+			auto val0 = arguments[0].variable().second;
+            auto arg = environment.variables.find(val0)->second;
+
+            if (arg.list().first) {
+                auto l = arg.list().second;
+                sort(l.begin(), l.end());
+                return l;
+            } else {
+                return Value();
+            }
+        } else if (function == Function::Sum) {
+			auto val0 = arguments[0].variable().second;
+			auto arg = environment.variables.find(val0)->second;
+
+            if (arg.list().first) {
+                auto l = arg.list().second;
+
+                return accumulate(l.begin(), l.end(), 0);
+            } else {
+                return Value();
+            }
+        } else if (function == Function::Map) {
+			//std::cout << arguments[0].Val() << endl;
+            auto lambda = arguments[0].one_argument_lambda().second;
+			//std::cout << (uint32_t)lambda << endl;
+			auto val1 = arguments[1].variable().second;
+            auto list = environment.variables.find(val1)->second;
+
+            if (list.list().first) {
+                auto l = list.list().second;
+                auto f = get_one_argument_lambda(lambda);
+
+                for (auto& x: l) {
+                    x = f(x);
+                }
+                return l;
+            } else {
+                return Value();
+            }
+        } else if (function == Function::Filter) {
+            auto lambda = arguments[0].predicate().second;
+			auto val1 = arguments[1].variable().second;
+            auto list = environment.variables.find(val1)->second;
+
+            if (list.list().first) {
+                auto l = list.list().second;
+                auto f = get_predicate_lambda(lambda);
+
+                auto tmp = vector<int>();
+                tmp.reserve(l.size());
+
+                for (const auto& x: l) {
+                    if (f(x)) {
+                        tmp.push_back(x);
+                    }
+                }
+                return tmp;
+            } else {
+                return Value();
+            }
+        } else if (function == Function::Count) {
+            auto lambda = arguments[0].predicate().second;
+			auto val1 = arguments[1].variable().second;
+            auto list = environment.variables.find(val1)->second;
+
+            if (list.list().first) {
+                auto l = list.list().second;
+                auto f = get_predicate_lambda(lambda);
+
+                int n = 0;
+                for (const auto& x: l) {
+                    if (f(x)) {
+                        n++;
+                    }
+                }
+                return n;
+            } else {
+                return Value();
+            }
+        } else if (function == Function::ZipWith) {
+            auto lambda = arguments[0].two_arguments_lambda().second;
+			auto val1 = arguments[1].variable().second;
+			auto val2 = arguments[2].variable().second;
+            auto list1 = environment.variables.find(val1)->second;
+            auto list2 = environment.variables.find(val2)->second;
+
+            if (list1.list().first && list2.list().first) {
+                auto l1 = list1.list().second;
+                auto l2 = list2.list().second;
+                auto f = get_two_arguments_lambda(lambda);
+
+                vector<int> tmp(min(l1.size(), l2.size()));
+
+                for (auto i = 0; i < tmp.size(); i++) {
+                    tmp[i] = f(l1[i], l2[i]);
+                }
+                return tmp;
+            } else {
+                return Value();
+            }
+        } else if (function == Function::Scanl1) {
+            auto lambda = arguments[0].two_arguments_lambda().second;
+			auto val1 = arguments[1].variable().second;
+            auto list = environment.variables.find(val1)->second;
+
+            if (list.list().first) {
+                auto l = list.list().second;
+                auto f = get_two_arguments_lambda(lambda);
+
+                if (l.size() == 0) {
+                    return vector<int>(0);
+                }
+
+                vector<int> tmp(l.size());
+
+                for (auto i = 0; i < tmp.size(); i++) {
+                    if (i == 0) {
+                        tmp[i] = l[i];
+                    } else {
+                        tmp[i] = f(tmp[i - 1], l[i]);
+                    }
+                }
+                return tmp;
+            } else {
+                return Value();
+            }
+        } else if (function == Function::ReadInt) {
+            auto value = environment.input[environment.offset];
+            environment.offset += 1;
+
+            return value.integer().first ? value : Value();
+        } else if (function == Function::ReadList) {
+            auto value = environment.input[environment.offset];
+            environment.offset += 1;
+
+            return value.list().first ? value : Value();
+        }
+        return Value();
+#endif
     }
 
     experimental::optional <Environment> proceed(const Statement &statement, const Environment &environment) {
@@ -347,22 +611,28 @@ namespace dsl {
         auto value = eval(statement.function, statement.arguments, next);
         next.variables.insert({statement.variable, value});
 
-        return next;
+        return Optional(next);
     }
 
     experimental::optional <Output> eval(const Program &program, const Input &input) {
         auto env = Environment({}, input);
         for (const auto& s: program) {
             auto next = proceed(s, env);
+#ifdef USE_OPTION
             if (!next) {
                 return {};
             }
-            env = next.value();
+#else
+			if (!next.first) {
+				return {};
+			}
+#endif
+            env = next.second;
         }
 
         if (program.size() == 0) {
             return {};
         }
-        return env.variables.find(program.back().variable)->second;
+        return Optional(env.variables.find(program.back().variable)->second);
     }
 }

@@ -41,6 +41,7 @@ Attribute::Attribute(const dsl::Program &program) {
 
         this->function_presence[s.function] = 1;
         for (const auto& arg: s.arguments) {
+#ifdef USE_OPTION
             if (arg.predicate()) {
 				auto val = arg.predicate().value();
                 this->predicate_presence[val] = 1;
@@ -51,6 +52,20 @@ Attribute::Attribute(const dsl::Program &program) {
 				auto val = arg.two_arguments_lambda().value();
                 this->two_arguments_lambda_presence[val] = 1;
             }
+#else
+			if (arg.predicate().first) {
+				auto val = arg.predicate().second;
+				this->predicate_presence[val] = 1;
+			}
+			else if (arg.one_argument_lambda().first) {
+				auto val = arg.one_argument_lambda().second;
+				this->one_argument_lambda_presence[val] = 1;
+			}
+			else if (arg.two_arguments_lambda().first) {
+				auto val = arg.two_arguments_lambda().second;
+				this->two_arguments_lambda_presence[val] = 1;
+			}
+#endif
         }
     }
 }

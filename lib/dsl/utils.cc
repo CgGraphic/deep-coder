@@ -119,6 +119,7 @@ namespace dsl {
     }
 
     std::ostream &operator<<(std::ostream &stream, const Argument &argument) {
+#ifdef USE_OPTION
         if (argument.one_argument_lambda()) {
 			auto val = argument.one_argument_lambda().value();
             stream << stringify(val);
@@ -132,6 +133,24 @@ namespace dsl {
 			auto val = argument.variable().value();
             stream << stringify(val);
         }
+#else
+		if (argument.one_argument_lambda().first) {
+			auto val = argument.one_argument_lambda().second;
+			stream << stringify(val);
+		}
+		else if (argument.two_arguments_lambda().first) {
+			auto val = argument.two_arguments_lambda().second;
+			stream << stringify(val);
+		}
+		else if (argument.predicate().first) {
+			auto val = argument.predicate().second;
+			stream << stringify(val);
+		}
+		else if (argument.variable().first) {
+			auto val = argument.variable().second;
+			stream << stringify(val);
+		}
+#endif
 
         return stream;
     }
@@ -156,11 +175,11 @@ namespace dsl {
     }
 
     std::ostream &operator<<(std::ostream &stream, const Value &value) {
-        if (value.integer()) {
-            stream << value.integer().value();
-        } else if (value.list()) {
+        if (OptExists(value.integer())) {
+            stream << OptValue(value.integer());
+        } else if (OptExists(value.list())) {
             stream << "[";
-            auto l = value.list().value();
+            auto l = OptValue(value.list());
 
             for (auto i = 0; i < l.size(); i++) {
                 if (i != 0) {

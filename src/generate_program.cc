@@ -120,8 +120,8 @@ int main(int argc, char **argv) {
              : (is_none)
              ? dfs(max_length, Attribute(attr_), examples)
              : sort_and_add(max_length, Attribute(attr_), examples);
-    if (p) {
-        cout << p.value() << endl;
+    if (OptExists(p)) {
+        cout << OptValue(p) << endl;
         return 0;
     } else {
         return 1;

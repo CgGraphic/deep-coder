@@ -5,6 +5,7 @@ using namespace std;
 
 namespace dsl {
     experimental::optional<Type> get_type(const Argument& argument, const TypeEnvironment& env) {
+#ifdef USE_OPTIONA
         if (argument.one_argument_lambda()) {
             return Type::OneArgumentLambda;
         } else if (argument.two_arguments_lambda()) {
@@ -18,6 +19,24 @@ namespace dsl {
                 return it->second;
             }
         }
+#else
+		if (argument.one_argument_lambda().first) {
+			return { true,Type::OneArgumentLambda };
+		}
+		else if (argument.two_arguments_lambda().first) {
+			return { true,Type::TwoArgumentsLambda };
+		}
+		else if (argument.predicate().first) {
+			return { true,Type::PredicateLambda };
+		}
+		else if (argument.variable().first) {
+			auto val = argument.variable().second;
+			auto it = env.find(val);
+			if (it != env.end()) {
+				return { true,it->second };
+			}
+		}
+#endif
         return {};
     }
 
@@ -72,10 +91,15 @@ namespace dsl {
             auto argument = statement.arguments[i];
 
             auto actual_type = get_type(argument, env);
-
+#ifdef USE_OPTION
             if (expected_type != actual_type) {
                 return {};
             }
+#else
+			if (actual_type.first && expected_type != actual_type.second) {
+				return {};
+			}
+#endif
         }
 
         // Add variable type
@@ -85,22 +109,39 @@ namespace dsl {
 
         auto next = env;
         next.insert({statement.variable, signature.return_type});
+#ifdef USE_OPTION
         return next;
+#else
+		return { true,next };
+#endif
     }
 
     std::experimental::optional<TypeEnvironment> generate_type_environment(const Program &program) {
         TypeEnvironment env;
         for (const auto &statement: program) {
             auto next_env = check(statement, env);
+#ifdef USE_OPTION
             if (!next_env) {
                 return {};
             }
             env = next_env.value();
         }
         return env;
+#else
+			if (!next_env.first) {
+				return {};
+			}
+			env = next_env.second;
+		}
+		return { true,env };
+#endif
     }
 
     bool is_valid(const Program &program) {
+#ifdef USE_OPTION
         return static_cast<bool>(generate_type_environment(program));
+#else
+		return generate_type_environment(program).first;
+#endif
     }
 }

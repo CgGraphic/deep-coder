@@ -1,19 +1,52 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#ifdef USE_OPTION
+
+#define Optional(flag,x)  (x)
+#define Optional(x)    (x)
+#define OptExits(x)    (x)
+#define OptValue(x)    (x.value())
+#define OptValueOr(x,y) (x.value_or(y))
 
 #if defined(_MSC_VER) && (_MSC_VER >1900)
+
 #include <optional>
+
 namespace std
 {
+
 	namespace experimental
 	{
+
 		template<class T>
 		using optional = std::optional<T>;
+
+
 	};
 };
 #else
 #include <experimental/optional.hpp>
+#endif
+
+
+#else
+namespace std
+{
+
+	namespace experimental
+	{
+		template<class T>
+		using optional = std::pair<bool, T>;
+	}
+}
+
+#define Optional(flag, x)  {(flag),(x)}
+#define Optional(x) {true,(x)}
+
+#define OptExists(x)    (x.first)
+#define OptValue(x)    (x.second)
+#define OptValueOr(x,y) (x.first?x.second:y)
 #endif
 #pragma once
 

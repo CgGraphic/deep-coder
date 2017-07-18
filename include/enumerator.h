@@ -68,7 +68,7 @@ bool enumerate(const Restriction &restriction, const CalcInformation & calc_info
             auto new_tenv = dsl::check(s, tenv);
             auto new_info = calc_information(p, info);
 
-            if (new_tenv) {
+            if (OptExists(new_tenv)) {
                 if (p.size() >= restriction.min_length && p.size() <= restriction.max_length) {
                     if (!process(p, info)) {
                         // Finish enumeration
@@ -77,7 +77,7 @@ bool enumerate(const Restriction &restriction, const CalcInformation & calc_info
                 }
 
                 if (p.size() < restriction.max_length) {
-                    if(!enumerate(restriction, calc_information, process, p, new_tenv.value(), new_info)) {
+                    if(!enumerate(restriction, calc_information, process, p, OptValue(new_tenv), new_info)) {
                         return false;
                     }
                 }
@@ -99,7 +99,7 @@ bool enumerate(const Restriction &restriction, const CalcInformation & calc_info
                     auto new_tenv = dsl::check(s, tenv);
                     auto new_info = calc_information(p, info);
 
-                    if (new_tenv) {
+                    if (OptExists(new_tenv)) {
                         if (p.size() >= restriction.min_length && p.size() <= restriction.max_length) {
                             if (!process(p, new_info)) {
                                 // Finish enumeration
@@ -108,7 +108,7 @@ bool enumerate(const Restriction &restriction, const CalcInformation & calc_info
                         }
 
                         if (p.size() < restriction.max_length) {
-                            if (!enumerate(restriction, calc_information, process, p, new_tenv.value(), new_info)) {
+                            if (!enumerate(restriction, calc_information, process, p, OptValue(new_tenv), new_info)) {
                                 return false;
                             }
                         }
@@ -139,10 +139,10 @@ void enumerate(const Restriction &restriction, const CalcInformation & calc_info
     auto tenv = dsl::TypeEnvironment();
     for (const auto& s: initial_program) {
         auto tmp = dsl::check(s, tenv);
-        if (!tmp) {
+        if (!OptExists(tmp)) {
             return ;
         }
-        tenv = tmp.value();
+        tenv = OptValue(tmp);
     }
 
     enumerate(restriction, calc_information, process, initial_program, tenv, initial_info);

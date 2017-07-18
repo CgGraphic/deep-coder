@@ -17,13 +17,13 @@ pair<experimental::optional<int>, experimental::optional<int>> IntegerConstraint
     auto max = this->max;
 
     // sign
-    if (this->sign) {
-        if (this->sign.value() == Sign::Positive) {
-            min = std::max(min.value_or(1), 1);
-        } else if (this->sign.value() == Sign::Negative){
-            max = std::min(max.value_or(-1), -1);
+    if (OptExists(this->sign)) {
+        if (OptValue(this->sign) == Sign::Positive) {
+            min = Optional(std::max(OptValueOr(min,(1)), 1));
+        } else if (OptValue(this->sign) == Sign::Negative){
+            max = Optional(std::min(OptValueOr(max,(-1)), -1));
         } else {
-            return {0, 0};
+            return { Optional(0), Optional(0)};
         }
     }
     return {min, max};
@@ -76,17 +76,17 @@ vector<IntegerConstraint> ListConstraint::all_constraints() const {
 
 experimental::optional<int> generate_integer(const IntegerConstraint& constraint) {
     auto p = constraint.range();
-    auto min = p.first.value_or(INPUT_MIN);
-    auto max = p.second.value_or(INPUT_MAX);
+    auto min = OptValueOr(p.first,(INPUT_MIN));
+    auto max = OptValueOr(p.second,(INPUT_MAX));
 
     // sign
-    if (constraint.sign) {
-        if (constraint.sign.value() == Sign::Positive) {
+    if (OptExists(constraint.sign)) {
+        if (OptValue(constraint.sign) == Sign::Positive) {
             min = std::max(min, 1);
-        } else if (constraint.sign.value() == Sign::Negative){
+        } else if (OptValue(constraint.sign) == Sign::Negative){
             max = std::min(max, -1);
         } else {
-            return 0;
+            return Optional(0);
         }
     }
 
@@ -95,25 +95,25 @@ experimental::optional<int> generate_integer(const IntegerConstraint& constraint
     }
 
     uniform_int_distribution<> r(min, max);
-    if (constraint.is_even) {
-        if (constraint.is_even.value()) {
+    if (OptExists(constraint.is_even)) {
+        if (OptValue(constraint.is_even)) {
             // Even
             uniform_int_distribution<> r((min + 1) / 2, max / 2);
-            return r(mt) * 2;
+            return Optional(r(mt) * 2);
         } else {
             // Odd
             uniform_int_distribution<> r(min / 2, (max - 1) / 2);
-            return r(mt) * 2 + 1;
+            return Optional(r(mt) * 2 + 1);
         }
     } else {
         uniform_int_distribution<> r(min, max);
-        return r(mt);
+        return Optional(r(mt));
     }
 }
 
 experimental::optional<vector<int>> generate_list(const ListConstraint &constraint) {
-    auto min_length = std::max(constraint.min_length.value_or(0), 0);
-    auto max_length = std::max(constraint.max_length.value_or(LIST_LENGTH), 0);
+    auto min_length = std::max(OptValueOr(constraint.min_length,(0)), 0);
+    auto max_length = std::max(OptValueOr(constraint.max_length,(LIST_LENGTH)), 0);
 
     if (max_length < min_length) {
         return {};
@@ -127,15 +127,15 @@ experimental::optional<vector<int>> generate_list(const ListConstraint &constrai
         bool is_initialized = false;
         auto c = constraint.generate_integer_constraint();
         auto x = generate_integer(c);
-        if (x) {
-            elem = x.value();
+        if (OptExists(x)) {
+            elem = OptValue(x);
             is_initialized = true;
         } else {
             auto cs = constraint.all_constraints();
             for (const auto &c: cs) {
                 auto x = generate_integer(c);
-                if (x) {
-                    elem = x.value();
+                if (OptExists(x)) {
+                    elem = OptValue(x);
                     is_initialized = true;
                     break;
                 }
@@ -147,27 +147,27 @@ experimental::optional<vector<int>> generate_list(const ListConstraint &constrai
         }
     }
 
-    return list;
+    return Optional(list);
 }
 
 experimental::optional<Constraint> analyze(const Program &p) {
     auto tenv_ = generate_type_environment(p);
-    if (!tenv_) {
+    if (!OptExists(tenv_)) {
         return {};
     }
 
-    auto tenv = tenv_.value();
+    auto tenv = OptValue(tenv_);
     Constraint c;
 
     auto list_constraint = [&c](const Argument& arg) -> ListConstraint& {
-        auto var = arg.variable().value();
+        auto var = OptValue(arg.variable());
         if (c.list_variables.find(var) == c.list_variables.end()) {
             c.list_variables.insert({var, ListConstraint()});
         }
         return c.list_variables.find(var)->second;
     };
     auto integer_constraint = [&](const Argument &arg) -> IntegerConstraint& {
-        auto var = arg.variable().value();
+        auto var = OptValue(arg.variable());
         if (c.integer_variables.find(var) == c.integer_variables.end()) {
             c.integer_variables.insert({var, IntegerConstraint()});
         }
@@ -186,53 +186,51 @@ experimental::optional<Constraint> analyze(const Program &p) {
                 auto &lc = list_constraint(it->arguments.at(0));
                 lc.sign.insert(ic.sign);
                 lc.is_even.insert(ic.is_even);
-                lc.min_length = max(lc.min_length.value_or(0), 1);
+                lc.min_length = Optional(max(OptValueOr(lc.min_length,(0)), 1));
             } else if (it->function == Function::Access) {
                 auto &nc = integer_constraint(it->arguments.at(0));
                 auto &lc = list_constraint(it->arguments.at(1));
-                nc.min = max(nc.min.value_or(0), 0);
-                lc.min_length = max(lc.min_length.value_or(0), nc.min.value_or(0));
-                lc.sign.insert(ic.sign);
-                lc.is_even.insert(ic.is_even);
-                lc.min_length = max(lc.min_length.value_or(0), 1);
+                nc.min = Optional(max(OptValueOr(nc.min,(0)), 0));
+				lc.min_length = Optional(max(OptValueOr(lc.min_length, (0)), OptValueOr(nc.min, (0))));
+                lc.min_length = Optional(max(OptValueOr(lc.min_length,(0)), 1));
             } else if (it->function == Function::Maximum) {
                 auto &lc = list_constraint(it->arguments.at(0));
-                lc.min_length = max(lc.min_length.value_or(1), 1);
-                if (ic.max) {
-                    lc.max = min(lc.max.value_or(ic.max.value()), ic.max.value());
+                lc.min_length = Optional(max(OptValueOr(lc.min_length,(1)), 1));
+                if (OptExists(ic.max)) {
+                    lc.max = Optional( min(OptValueOr(lc.max,(OptValue(ic.max))), OptValue(ic.max)));
                 }
             } else if (it->function == Function::Minimum) {
                 auto &lc = list_constraint(it->arguments.at(0));
-                lc.min_length = max(lc.min_length.value_or(1), 1);
-                if (ic.min) {
-                    lc.min = max(lc.min.value_or(ic.min.value()), ic.min.value());
+                lc.min_length = Optional(max(OptValueOr(lc.min_length,(1)), 1));
+                if (OptExists(ic.min)) {
+                    lc.min = Optional(max(OptValueOr(lc.min,(OptValue(ic.min))), OptValue(ic.min)));
                 }
             } else if (it->function == Function::Sum) {
                 auto &lc = list_constraint(it->arguments.at(0));
                 auto range = ic.range();
-                if (range.first.value_or(0) > 0 || range.second.value_or(0) < 0) {
-                    lc.min_length = max(lc.min_length.value_or(0), 1);
+                if (OptValueOr(range.first,(0)) > 0 || OptValueOr(range.second,(0)) < 0) {
+                    lc.min_length = Optional(max(OptValueOr(lc.min_length,(0)), 1));
                 }
             } else if (it->function == Function::Count) {
-                auto lambda = it->arguments.at(0).predicate().value();
+                auto lambda = OptValue(it->arguments.at(0).predicate());
                 auto &lc = list_constraint(it->arguments.at(1));
 
-                if (ic.min) {
-                    lc.min_length = max(lc.min_length.value_or(0), ic.min.value());
+                if (OptExists(ic.min)) {
+                    lc.min_length = Optional(max(OptValueOr(lc.min_length,(0)), OptValue(ic.min)));
 
-                    if (ic.min.value() >= 1) {
+                    if (OptValue(ic.min) >= 1) {
                         switch (lambda) {
                             case PredicateLambda::IsPositive:
-                                lc.sign.insert(Sign::Positive);
+                                lc.sign.insert(Optional(Sign::Positive));
                                 break;
                             case PredicateLambda::IsNegative:
-                                lc.sign.insert(Sign::Negative);
+                                lc.sign.insert(Optional(Sign::Negative));
                                 break;
                             case PredicateLambda::IsOdd:
-                                lc.is_even.insert(false);
+                                lc.is_even.insert(Optional(false));
                                 break;
                             case PredicateLambda::IsEven:
-                                lc.is_even.insert(true);
+                                lc.is_even.insert(Optional(true));
                                 break;
                         }
                     }
@@ -249,123 +247,123 @@ experimental::optional<Constraint> analyze(const Program &p) {
                 auto &nc = integer_constraint(it->arguments.at(0));
                 auto &lc2 = list_constraint(it->arguments.at(1));
 
-                nc.min = max(nc.min.value_or(0), 0);
+                nc.min = Optional(max(OptValueOr(nc.min,(0)), 0));
                 for (const auto& x: lc.sign) {
                     lc2.sign.insert(x);
                 }
                 for (const auto& x: lc.is_even) {
                     lc2.is_even.insert(x);
                 }
-                if (lc.min_length) {
-                    lc2.min_length = max(lc.min_length.value(), lc2.min_length.value_or(0));
+                if (OptExists(lc.min_length)) {
+                    lc2.min_length = Optional(max(OptValue(lc.min_length), OptValueOr(lc2.min_length,(0))));
                 }
             } else if (it->function == Function::Reverse || it->function == Function::Sort) {
                 auto &lc2 = list_constraint(it->arguments.at(0));
                 lc2 = lc;
             } else if (it->function == Function::Map) {
-                auto lambda = it->arguments.at(0).one_argument_lambda().value();
+                auto lambda = OptValue(it->arguments.at(0).one_argument_lambda());
                 auto &lc2 = list_constraint(it->arguments.at(1));
 
-                if (lc.min_length) {
-                    lc2.min_length = max(lc2.min_length.value_or(0), lc.min_length.value());
+                if (OptExists(lc.min_length)) {
+                    lc2.min_length = Optional(max(OptValueOr(lc2.min_length,(0)), OptValue(lc.min_length)));
                 }
 
                 switch (lambda) {
                     case OneArgumentLambda::Plus1:
-                        if (lc.min) {
-                            lc2.min = lc.min.value() - 1;
+                        if (OptExists(lc.min)) {
+                            lc2.min = Optional(OptValue(lc.min) - 1);
                         }
-                        if (lc.max) {
-                            lc2.max = lc.max.value() - 1;
+                        if (OptExists(lc.max)) {
+                            lc2.max = Optional(OptValue(lc.max) - 1);
                         }
                         for (const auto &x: lc.is_even) {
-                            lc2.is_even.insert(!x);
+                            lc2.is_even.insert(Optional(!OptExists(x)));
                         }
                         break;
                     case OneArgumentLambda::Minus1:
-                        if (lc.min) {
-                            lc2.min = lc.min.value() + 1;
+                        if (OptExists(lc.min)) {
+                            lc2.min = Optional(OptValue(lc.min) + 1);
                         }
-                        if (lc.max) {
-                            lc2.max = lc.max.value() + 1;
+                        if (OptExists(lc.max)) {
+                            lc2.max = Optional(OptValue(lc.max) + 1);
                         }
 
                         lc2.is_even.clear();
                         for (const auto &x: lc.is_even) {
-                            lc2.is_even.insert(!x);
+                            lc2.is_even.insert(Optional(!OptExists(x)));
                         }
                         break;
                     case OneArgumentLambda::MultiplyMinus1:
-                        if (lc.max) {
-                            lc2.min = lc.max.value() * (-1);
+                        if (OptExists(lc.max)) {
+                            lc2.min = Optional(OptValue(lc.max) * (-1));
                         }
-                        if (lc.min) {
-                            lc2.max = lc.min.value() * (-1);
+                        if (OptExists(lc.min)) {
+                            lc2.max = Optional(OptValue(lc.min) * (-1));
                         }
                         lc2.is_even = lc.is_even;
                         for (const auto &x: lc.sign) {
-                            if (x == Sign::Positive) {
-                                lc2.sign.insert(Sign::Negative);
-                            } else if (x == Sign::Negative) {
-                                lc2.sign.insert(Sign::Positive);
+                            if (OptValue(x) == Sign::Positive) {
+                                lc2.sign.insert(Optional(Sign::Negative));
+                            } else if (OptValue(x) == Sign::Negative) {
+                                lc2.sign.insert(Optional(Sign::Positive));
                             } else {
                                 lc2.sign.insert(x);
                             }
                         }
                         break;
                     case OneArgumentLambda::Multiply2:
-                        if (lc.min) {
-                            lc2.min = lc.min.value() / 2;
+                        if (OptExists(lc.min)) {
+                            lc2.min = Optional(OptValue(lc.min) / 2);
                         }
-                        if (lc.min) {
-                            lc2.max = lc.max.value() / 2;
+                        if (OptExists(lc.min)) {
+                            lc2.max = Optional(OptValue(lc.max) / 2);
                         }
                         lc2.sign = lc.sign;
                         break;
                     case OneArgumentLambda::Multiply3:
-                        if (lc.min) {
-                            lc2.min = lc.min.value() / 3;
+                        if (OptExists(lc.min)) {
+                            lc2.min = Optional(OptValue(lc.min) / 3);
                         }
-                        if (lc.min) {
-                            lc2.max = lc.max.value() / 3;
+                        if (OptExists(lc.min)) {
+                            lc2.max = Optional(OptValue(lc.max) / 3);
                         }
                         lc2.sign = lc.sign;
                         lc2.is_even = lc.is_even;
                         break;
                     case OneArgumentLambda::Multiply4:
-                        if (lc.min) {
-                            lc2.min = lc.min.value() / 4;
+                        if (OptExists(lc.min)) {
+                            lc2.min = Optional(OptValue(lc.min) / 4);
                         }
-                        if (lc.min) {
-                            lc2.max = lc.max.value() / 4;
+                        if (OptExists(lc.min)) {
+                            lc2.max = Optional(OptValue(lc.max) / 4);
                         }
                         lc2.sign = lc.sign;
                         break;
                     case OneArgumentLambda::Divide2:
-                        if (lc.min) {
-                            lc2.min = lc.min.value() / 2;
+                        if (OptExists(lc.min)) {
+                            lc2.min = Optional(OptValue(lc.min) / 2);
                         }
-                        if (lc.min) {
-                            lc2.max = lc.max.value() / 2;
+                        if (OptExists(lc.min)) {
+                            lc2.max = Optional(OptValue(lc.max) / 2);
                         }
                         lc2.sign = lc.sign;
                         break;
                     case OneArgumentLambda::Divide3:
-                        if (lc.min) {
-                            lc2.min = lc.min.value() / 3;
+                        if (OptExists(lc.min)) {
+                            lc2.min = Optional(OptValue(lc.min) / 3);
                         }
-                        if (lc.min) {
-                            lc2.max = lc.max.value() / 3;
+                        if (OptExists(lc.min)) {
+                            lc2.max = Optional(OptValue(lc.max) / 3);
                         }
                         lc2.sign = lc.sign;
                         lc2.is_even = lc.is_even;
                         break;
                     case OneArgumentLambda::Divide4:
-                        if (lc.min) {
-                            lc2.min = lc.min.value() / 4;
+                        if (OptExists(lc.min)) {
+                            lc2.min = Optional(OptValue(lc.min) / 4);
                         }
-                        if (lc.min) {
-                            lc2.max = lc.max.value() / 4;
+                        if (OptExists(lc.min)) {
+                            lc2.max = Optional(OptValue(lc.max) / 4);
                         }
                         lc2.sign = lc.sign;
                         break;
@@ -376,25 +374,25 @@ experimental::optional<Constraint> analyze(const Program &p) {
                         break;
                 }
             } else if (it->function == Function::Filter) {
-                auto lambda = it->arguments.at(0).predicate().value();
+                auto lambda = OptValue(it->arguments.at(0).predicate());
                 auto &lc2 = list_constraint(it->arguments.at(1));
 
-                if (lc.min_length) {
-                    lc2.min_length = max(lc2.min_length.value_or(0), lc.min_length.value());
+                if (OptExists(lc.min_length)) {
+                    lc2.min_length = Optional(max(OptValueOr(lc2.min_length,(0)), OptValue(lc.min_length)));
 
-                    if (lc.min_length.value() >= 1) {
+                    if (OptValue(lc.min_length) >= 1) {
                         switch (lambda) {
                             case PredicateLambda::IsPositive:
-                                lc2.sign.insert(Sign::Positive);
+                                lc2.sign.insert(Optional(Sign::Positive));
                                 break;
                             case PredicateLambda::IsNegative:
-                                lc2.sign.insert(Sign::Negative);
+                                lc2.sign.insert(Optional(Sign::Negative));
                                 break;
                             case PredicateLambda::IsOdd:
-                                lc2.is_even.insert(false);
+                                lc2.is_even.insert(Optional(false));
                                 break;
                             case PredicateLambda::IsEven:
-                                lc2.is_even.insert(true);
+                                lc2.is_even.insert(Optional(true));
                                 break;
                         }
                     }
@@ -403,15 +401,15 @@ experimental::optional<Constraint> analyze(const Program &p) {
                 auto &lc2 = list_constraint(it->arguments.at(1));
                 auto &lc3 = list_constraint(it->arguments.at(2));
 
-                if (lc.min_length) {
-                    lc2.min_length = max(lc2.min_length.value_or(0), lc.min_length.value());
-                    lc3.min_length = max(lc3.min_length.value_or(0), lc.min_length.value());
+                if (OptExists(lc.min_length)) {
+                    lc2.min_length = Optional(max(OptValueOr(lc2.min_length,(0)), OptValue(lc.min_length)));
+                    lc3.min_length = Optional(max(OptValueOr(lc3.min_length,(0)), OptValue(lc.min_length)));
                 }
             } else if (it->function == Function::Scanl1) {
                 auto &lc2 = list_constraint(it->arguments.at(1));
 
-                if (lc.min_length) {
-                    lc2.min_length = max(lc2.min_length.value_or(0), lc.min_length.value());
+                if (OptExists(lc.min_length)) {
+                    lc2.min_length = Optional(max(OptValueOr(lc2.min_length,(0)), OptValue(lc.min_length)));
                 }
             } else if (it->function == Function::ReadList) {
                 c.inputs.push_back(it->variable);
@@ -423,15 +421,15 @@ experimental::optional<Constraint> analyze(const Program &p) {
 
     reverse(c.inputs.begin(), c.inputs.end());
 
-    return c;
+    return Optional(c);
 }
 
 bool is_in_range(const Value &v) {
-    if (v.integer()) {
-        auto i = v.integer().value();
+    if (OptExists(v.integer())) {
+        auto i = OptValue(v.integer());
         return i >= INTEGER_MIN && i <= INTEGER_MAX;
-    } else if (v.list()) {
-        auto l = v.list().value();
+    } else if (OptExists(v.list())) {
+        auto l = OptValue(v.list());
         return all_of(l.begin(), l.end(), [](const auto &i) {
             return i >= INTEGER_MIN && i <= INTEGER_MAX;
         });
@@ -442,11 +440,11 @@ bool is_in_range(const Value &v) {
 
 experimental::optional<vector<Example>> generate_examples(const dsl::Program &p, size_t example_num) {
     auto c_ = analyze(p);
-    if (!c_) {
+    if (!OptExists(c_)) {
         return {};
     }
 
-    auto c = c_.value();
+    auto c = OptValue(c_);
 
     vector<Example> examples;
     examples.reserve(example_num);
@@ -459,16 +457,16 @@ experimental::optional<vector<Example>> generate_examples(const dsl::Program &p,
             if (c.integer_variables.find(input_var) != c.integer_variables.end()) {
                 auto constraint = c.integer_variables.find(input_var)->second;
                 auto n = generate_integer(constraint);
-                if (n) {
-                    input.push_back(Value(n.value()));
+                if (OptExists(n)) {
+                    input.push_back(Value(OptValue(n)));
                 } else {
                     break;
                 }
             } else {
                 auto constraint = c.list_variables.find(input_var)->second;
                 auto l = generate_list(constraint);
-                if (l) {
-                    input.push_back(Value(l.value()));
+                if (OptExists(l)) {
+                    input.push_back(Value(OptValue(l)));
                 } else {
                     break;
                 }
@@ -477,14 +475,14 @@ experimental::optional<vector<Example>> generate_examples(const dsl::Program &p,
 
         if (c.inputs.size() == input.size()) {
             auto output = eval(p, input);
-            if (output && !output.value().is_null()) {
-                auto o = output.value();
+            if (OptExists(output) && !OptValue(output).is_null()) {
+                auto o = OptValue(output);
 
                 if (!is_in_range(o)) {
                     continue ;
                 }
 
-                examples.push_back(Example{input, output.value()});
+                examples.push_back(Example{input, OptValue(output)});
 
                 if (examples.size() >= example_num) {
                     break;
@@ -493,5 +491,5 @@ experimental::optional<vector<Example>> generate_examples(const dsl::Program &p,
         }
     }
 
-    return examples;
+    return Optional(examples);
 }

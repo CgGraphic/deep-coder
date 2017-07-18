@@ -18,8 +18,13 @@ auto mk_calc_info() {
 
         for (auto i = 0; i < env.size(); i++) {
             auto e = proceed((p.at(index)), env[i]);
-            if (e){
-                env2.push_back(e.value());
+#ifdef USE_OPTION
+			if (e) {
+				env2.push_back(e));
+#else
+			if(e.first){
+				env2.push_back(e.second);
+#endif // USE_OPTION
             } else {
                 return make_tuple(index + 1, false, env);
             }
@@ -77,8 +82,13 @@ experimental::optional<Program> dfs(size_t max_length, const Attribute &attr, co
 
         for (const auto &s: read_input) {
             auto x = proceed(s, e);
+#ifdef USE_OPTION
             if (x) {
                 e = x.value();
+#else
+			if (x.first) {
+				e = x.second;
+#endif
             } else {
                 return {};
             }
@@ -110,7 +120,7 @@ experimental::optional<Program> dfs(size_t max_length, const Attribute &attr, co
                 }
 
                 if (satisfy) {
-                    program_opt = p;
+                    program_opt = Optional(p);
                 }
                 return !satisfy;
             },
@@ -168,8 +178,13 @@ experimental::optional<Program> sort_and_add(size_t max_length, const Attribute 
 
         for (const auto &s: read_input) {
             auto x = proceed(s, e);
+#ifdef USE_OPTION
             if (x) {
                 e = x.value();
+#else
+			if (x.first) {
+				e = x.second;
+#endif
             } else {
                 return {};
             }
@@ -203,14 +218,14 @@ experimental::optional<Program> sort_and_add(size_t max_length, const Attribute 
                     }
 
                     if (satisfy) {
-                        program_opt = p;
+                        program_opt = Optional(p);
                     }
                     return !satisfy;
                 },
                 read_input, make_tuple(read_input.size(), true, initial_env)
         );
 
-        if (program_opt) {
+        if (OptExists(program_opt)) {
             break;
         }
 

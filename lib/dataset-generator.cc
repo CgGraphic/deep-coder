@@ -15,8 +15,8 @@ bool has_unused_variable(const dsl::Program &p) {
 
     for (const auto &s: p) {
         for (const auto &arg: s.arguments) {
-            if (arg.variable()) {
-                auto var = arg.variable().value();
+            if (OptExists(arg.variable())) {
+                auto var = OptValue(arg.variable());
                 unused_var.erase(var);
             }
         }
@@ -38,7 +38,7 @@ void DatasetForOneInputType::insert(const Program &p, const vector<Example> &exa
 
     // Check type of the program output
     auto example = examples[0];
-    auto &candidates = (example.output.integer())
+    auto &candidates = (OptExists(example.output.integer()))
                       ? this->int_output_programs
                       : this->list_output_programs;
 
@@ -52,11 +52,11 @@ void DatasetForOneInputType::insert(const Program &p, const vector<Example> &exa
         bool is_equivalent = true;
         for (const auto &example: candidate.second) {
             auto output = eval(p, example.input);
-            if (!output) {
+            if (!OptExists(output)) {
                 is_equivalent = false;
                 break;
             } else {
-                if (output.value() != example.output) {
+                if (OptValue(output) != example.output) {
                     is_equivalent = false;
                     break;
                 }
@@ -65,11 +65,11 @@ void DatasetForOneInputType::insert(const Program &p, const vector<Example> &exa
         if (is_equivalent) {
             for (const auto &example: examples) {
                 auto output = eval(candidate.first, example.input);
-                if (!output) {
+                if (!OptExists(output)) {
                     is_equivalent = false;
                     break ;
                 } else {
-                    if (output.value() != example.output) {
+                    if (OptValue(output) != example.output) {
                         is_equivalent = false;
                         break ;
                     }
@@ -160,12 +160,12 @@ experimental::optional<Dataset> generate_dataset(
 					// Generate example
 					auto examples_ = generate_examples(p, example_per_program);
 
-					if (!examples_) {
+					if (!OptExists(examples_)) {
 						cerr << "Fail to generate examples" << endl;
 						return true;
 					}
 
-					auto examples = examples_.value();
+					auto examples = OptValue(examples_);
 					d.insert(p, examples);
 
 					//cerr << "Generating dataset... (" << id << ") " << d.size;
@@ -247,5 +247,5 @@ experimental::optional<Dataset> generate_dataset(
     is_finished = true;
     monitor.join();
 
-    return dataset;
+    return Optional(dataset);
 }
