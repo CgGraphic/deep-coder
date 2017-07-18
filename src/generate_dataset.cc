@@ -60,6 +60,8 @@ void func(const Argument& argument, const TypeEnvironment& env)
 		std::cout << "Yes" << endl;
 }
 
+
+
 int main(int argc, char **argv) {
 
 	///Test
@@ -75,7 +77,7 @@ int main(int argc, char **argv) {
 
 
 
-    size_t max_length = 1;
+    size_t max_length = 2;
     size_t dataset_size = 0;
     size_t example_pair_per_program = 1;
 	 
@@ -90,8 +92,10 @@ int main(int argc, char **argv) {
     }
 
     cerr << "Generate dataset\n" << "  Max-Length: " << max_length << "\n  Dataset-Size: " << dataset_size << endl;
+	auto time_start = std::chrono::system_clock::now();
     auto dataset = generate_dataset(1, max_length, dataset_size, example_pair_per_program * EXAMPLE_NUM);
-
+	auto time_end = std::chrono::system_clock::now();
+	std::cerr <<"Cost "<< std::chrono::duration<double>(time_end - time_start).count() << "s\n";
     cout << "[\n";
 	long long int cnt = 0;
     if (OptExists(dataset)) {
@@ -135,6 +139,6 @@ int main(int argc, char **argv) {
         cerr << "Fail to generate dataset" << endl;
     }
     cout << "]" << endl;
-	cout << "Total# " << cnt << endl;
+	cerr << "Total# " << cnt << endl;
     return 0;
 }

@@ -622,12 +622,14 @@ namespace dsl {
             if (!next) {
                 return {};
             }
+			env = next;
 #else
 			if (!next.first) {
 				return {};
 			}
+			env = next.second;
 #endif
-            env = next.second;
+           
         }
 
         if (program.size() == 0) {

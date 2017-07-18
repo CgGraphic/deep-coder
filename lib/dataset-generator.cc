@@ -6,6 +6,11 @@
 #include "dataset-generator.h"
 #include "enumerator.h"
 
+#if defined(USE_PPL) && defined(WIN32)
+#include <ppl.h>
+#include <concurrent_vector.h>
+#endif
+
 using namespace std;
 using namespace dsl;
 
@@ -42,58 +47,78 @@ void DatasetForOneInputType::insert(const Program &p, const vector<Example> &exa
                       ? this->int_output_programs
                       : this->list_output_programs;
 
+
+
+	auto run_program = [&](int i, auto & deleted_size,auto & has_equivalent_program,auto & indexes_to_be_deleted)
+	{
+		const auto &candidate = candidates.at(i);
+		bool is_equivalent = true;
+		for (const auto &example : candidate.second) {
+			auto output = eval(p, example.input);
+			if (!OptExists(output)) {
+				is_equivalent = false;
+				break;
+			}
+			else {
+				if (OptValue(output) != example.output) {
+					is_equivalent = false;
+					break;
+				}
+			}
+		}
+		if (is_equivalent) {
+			for (const auto &example : examples) {
+				auto output = eval(candidate.first, example.input);
+				if (!OptExists(output)) {
+					is_equivalent = false;
+					break;
+				}
+				else {
+					if (OptValue(output) != example.output) {
+						is_equivalent = false;
+						break;
+					}
+				}
+			}
+		}
+		if (is_equivalent) {
+			//cerr << "Equivalent\n" << p << candidate.first << endl;
+
+			if (candidate.first.size() > p.size()) {
+				indexes_to_be_deleted.push_back(i);
+				deleted_size += candidate.second.size() / EXAMPLE_NUM;
+			}
+			else {
+				has_equivalent_program = true;
+			}
+		}
+	};
+
     // Search equivalent program
+#if defined(USE_PPL) && defined(WIN32)
+	atomic<bool> has_equivalent_program = false;
+	Concurrency::concurrent_vector<int> indexes_to_be_deleted;
+	indexes_to_be_deleted.reserve(candidates.size());
+	atomic<size_t> deleted_size = 0;
+	Concurrency::parallel_for(0, (int)candidates.size(), [&](int i) {
+		run_program(i, deleted_size, has_equivalent_program, indexes_to_be_deleted);
+	});
+#else
     bool has_equivalent_program = false;
     vector<int> indexes_to_be_deleted;
     indexes_to_be_deleted.reserve(candidates.size());
     size_t deleted_size = 0;
     for (auto i = 0; i < candidates.size(); i++) {
-        const auto &candidate = candidates.at(i);
-        bool is_equivalent = true;
-        for (const auto &example: candidate.second) {
-            auto output = eval(p, example.input);
-            if (!OptExists(output)) {
-                is_equivalent = false;
-                break;
-            } else {
-                if (OptValue(output) != example.output) {
-                    is_equivalent = false;
-                    break;
-                }
-            }
-        }
-        if (is_equivalent) {
-            for (const auto &example: examples) {
-                auto output = eval(candidate.first, example.input);
-                if (!OptExists(output)) {
-                    is_equivalent = false;
-                    break ;
-                } else {
-                    if (OptValue(output) != example.output) {
-                        is_equivalent = false;
-                        break ;
-                    }
-                }
-            }
-        }
 
-        if (is_equivalent) {
-            cerr << "Equivalent\n" << p << candidate.first << endl;
-
-            if (candidate.first.size() > p.size()) {
-                indexes_to_be_deleted.push_back(i);
-                deleted_size += candidate.second.size() / EXAMPLE_NUM;
-            } else {
-                has_equivalent_program = true;
-            }
-        }
+		run_program(i, deleted_size, has_equivalent_program, indexes_to_be_deleted);
     }
+#endif
 
     if (!has_equivalent_program) {
         candidates.push_back({p, examples});
         this->size += examples.size() / EXAMPLE_NUM;
     }
-
+	sort(indexes_to_be_deleted.begin(), indexes_to_be_deleted.end(), [](const int & a, const int & b) {return a < b; });
     for_each(indexes_to_be_deleted.rbegin(), indexes_to_be_deleted.rend(), [&candidates](const auto &i) {
         candidates.erase(candidates.begin() + i);
     });
