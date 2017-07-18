@@ -614,20 +614,25 @@ namespace dsl {
         return Optional(next);
     }
 
+	bool  proceed_nocpy(const Statement &statement, Environment &environment)
+	{
+		auto value = eval(statement.function, statement.arguments, environment);
+		environment.variables.insert({ statement.variable, value });
+		return true;
+	}
+
     experimental::optional <Output> eval(const Program &program, const Input &input) {
         auto env = Environment({}, input);
         for (const auto& s: program) {
-            auto next = proceed(s, env);
+            auto next = proceed_nocpy(s, env);
 #ifdef USE_OPTION
             if (!next) {
                 return {};
             }
-			env = next;
 #else
-			if (!next.first) {
+			if (!next) {
 				return {};
 			}
-			env = next.second;
 #endif
            
         }

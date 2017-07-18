@@ -35,4 +35,5 @@ namespace dsl {
 
     std::experimental::optional<Output> eval(const Program &program, const Input &input);
     std::experimental::optional<Environment> proceed(const Statement &statement, const Environment &environment);
+	bool                                     proceed_nocpy(const Statement &statement, Environment &environment);
 }
