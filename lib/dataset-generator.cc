@@ -138,6 +138,17 @@ struct AsyncDataset {
     atomic<bool> abort;
 };
 
+struct SyncDataSet
+{
+	SyncDataSet() {
+		this->size.store(0);
+		this->abort.store(false);
+	}
+	DatasetForOneInputType dataset;
+	atomic<size_t> size;
+	atomic<bool> abort;
+};
+
 experimental::optional<Dataset> generate_dataset(
         size_t min_length, size_t max_length, size_t dataset_size, size_t example_per_program) {
     auto functions = all_functions;
@@ -160,21 +171,22 @@ experimental::optional<Dataset> generate_dataset(
 
     auto calc_info = [](const Program& p, const int &i) { return i; };
 
-    vector<unique_ptr<AsyncDataset>> async_dataset;
-	 
+    vector<unique_ptr<SyncDataSet>> async_dataset;
+	auto time = std::chrono::system_clock::now();
+	std::atomic<int> cur_dataset_size = 0;
     enumerate(
         r_for_read, calc_info,
-        [&r, &calc_info, &dataset_size, &min_length, &max_length, &example_per_program, &async_dataset](const Program &p, const int &i) -> bool {
+        [&r, &calc_info, &dataset_size, &min_length, &max_length,  &example_per_program, &async_dataset, &time, &cur_dataset_size](const Program &p, const int &i) -> bool {
             r.min_length = min_length + p.size();
             r.max_length = max_length + p.size();
-            async_dataset.push_back(make_unique<AsyncDataset>());
+            async_dataset.push_back(make_unique<SyncDataSet>());
             auto &data = *async_dataset.back();
             auto id = async_dataset.size();
-			auto f = [r, calc_info, &dataset_size, &example_per_program, p, i, &id, &data]() {
+			auto f = [r, calc_info, &dataset_size, &example_per_program, p, i, &id, &data,&time, &cur_dataset_size]() {
 				DatasetForOneInputType d;
 				enumerate(
 					r, calc_info,
-					[&dataset_size, &example_per_program, &d, &data, &id](const Program &p,
+					[&dataset_size, &example_per_program, &d, &data, &id,&time, &cur_dataset_size](const Program &p,
 						const int &i) -> bool {
 					// Check program
 					//// Unused program
@@ -191,7 +203,20 @@ experimental::optional<Dataset> generate_dataset(
 					}
 
 					auto examples = OptValue(examples_);
+					auto pre_size = d.size;
 					d.insert(p, examples);
+
+					if (d.size != pre_size)
+					{
+						cur_dataset_size += d.size - pre_size;
+					}
+					auto time_end = std::chrono::system_clock::now();
+					if (std::chrono::duration<double>(time_end - time).count() > 100)
+					{
+						
+						std::cerr << "Generated: " << cur_dataset_size << "\n";
+						time = time_end;
+					}
 
 					//cerr << "Generating dataset... (" << id << ") " << d.size;
 					//if (dataset_size != 0) {
@@ -209,7 +234,7 @@ experimental::optional<Dataset> generate_dataset(
 						return true;
 					}
 					else {
-						return d.size < dataset_size;
+						return cur_dataset_size < dataset_size;
 					}
 				},
 					p, i
@@ -220,7 +245,7 @@ experimental::optional<Dataset> generate_dataset(
 			};
 
 
-			data.dataset = std::async(std::launch::async,f);
+			data.dataset = f();//std::async(std::launch::async,f);
 				
             return true;
         },
@@ -230,36 +255,36 @@ experimental::optional<Dataset> generate_dataset(
     // Run monitor thread
     atomic<bool> is_finished;
     is_finished = false;
-    auto monitor = thread([&async_dataset, &is_finished, &dataset_size]() {
-        while (true) {
-            this_thread::sleep_for(chrono::seconds(30));
-            if (is_finished) {
-                return ;
-            }
+    //auto monitor = thread([&async_dataset, &is_finished, &dataset_size]() {
+    //    while (true) {
+    //        this_thread::sleep_for(chrono::seconds(30));
+    //        if (is_finished) {
+    //            return ;
+    //        }
 
-            size_t size = 0;
-            for (auto &d: async_dataset) {
-                size += d->size.load();
-            }
-            cerr << "Progress: " << size;
-            if (dataset_size != 0) {
-                cerr << " / " << dataset_size;
-            }
-            cerr << endl;
-            if (dataset_size != 0 && size >= dataset_size) {
-                // Finish all enumeration
-                for (auto &d: async_dataset) {
-                    d->abort.store(true);
-                }
-                return ;
-            }
-        }
-    });
+    //        size_t size = 0;
+    //        for (auto &d: async_dataset) {
+    //            size += d->size.load();
+    //        }
+    //        cerr << "Progress: " << size;
+    //        if (dataset_size != 0) {
+    //            cerr << " / " << dataset_size;
+    //        }
+    //        cerr << endl;
+    //        if (dataset_size != 0 && size >= dataset_size) {
+    //            // Finish all enumeration
+    //            for (auto &d: async_dataset) {
+    //                d->abort.store(true);
+    //            }
+    //            return ;
+    //        }
+    //    }
+    //});
 
     // Wait for all futures
     Dataset dataset;
     for (auto &d: async_dataset) {
-        auto x = d->dataset.get();
+        auto & x = d->dataset;
         dataset.programs.reserve(x.int_output_programs.size() + x.list_output_programs.size() + dataset.programs.size());
         for (auto &y: x.int_output_programs) {
             dataset.programs.push_back(y);
@@ -270,7 +295,7 @@ experimental::optional<Dataset> generate_dataset(
         dataset.size += x.size;
     }
     is_finished = true;
-    monitor.join();
+   // monitor.join();
 
     return Optional(dataset);
 }
