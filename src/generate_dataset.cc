@@ -100,7 +100,30 @@ int main(int argc, char **argv) {
 	long long int cnt = 0;
     if (OptExists(dataset)) {
         auto x = OptValue(dataset);
-       
+		sort(x.programs.begin(), x.programs.end(), [](const auto  &a_pair, const auto & b_pair) {
+		
+			const auto & a = a_pair.first;
+			const auto & b = b_pair.first;
+			if (a.size() != b.size())
+				return a.size() < b.size();
+			for (int i = 0; i < a.size(); i++)
+			{
+				if (a[i].function != b[i].function)
+					return a[i].function < b[i].function;
+			}
+
+			for (int i = 0; i < a.size(); i++)
+			{
+				if (a[i].arguments.size() != b[i].arguments.size())
+					return a[i].arguments.size() < b[i].arguments.size();
+				for (int j = 0; j < a[i].arguments.size(); j++)
+				{
+					if (a[i].arguments[j].Val() != b[i].arguments[j].Val())
+						return a[i].arguments[j].Val() < b[i].arguments[j].Val();
+				 }
+
+			}
+		});
         for (const auto &p: x.programs) {
             cnt += 1;
             const auto &program = p.first;

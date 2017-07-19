@@ -138,9 +138,9 @@ struct AsyncDataset {
     atomic<bool> abort;
 };
 
-struct SyncDataSet
+struct SyncDataset
 {
-	SyncDataSet() {
+	SyncDataset() {
 		this->size.store(0);
 		this->abort.store(false);
 	}
@@ -171,7 +171,7 @@ experimental::optional<Dataset> generate_dataset(
 
     auto calc_info = [](const Program& p, const int &i) { return i; };
 
-    vector<unique_ptr<SyncDataSet>> async_dataset;
+    vector<unique_ptr<SyncDataset>> async_dataset;
 	auto time = std::chrono::system_clock::now();
 	std::atomic<int> cur_dataset_size = 0;
     enumerate(
@@ -179,7 +179,7 @@ experimental::optional<Dataset> generate_dataset(
         [&r, &calc_info, &dataset_size, &min_length, &max_length,  &example_per_program, &async_dataset, &time, &cur_dataset_size](const Program &p, const int &i) -> bool {
             r.min_length = min_length + p.size();
             r.max_length = max_length + p.size();
-            async_dataset.push_back(make_unique<SyncDataSet>());
+            async_dataset.push_back(make_unique<SyncDataset>());
             auto &data = *async_dataset.back();
             auto id = async_dataset.size();
 			auto f = [r, calc_info, &dataset_size, &example_per_program, p, i, &id, &data,&time, &cur_dataset_size]() {
@@ -257,7 +257,7 @@ experimental::optional<Dataset> generate_dataset(
     is_finished = false;
     //auto monitor = thread([&async_dataset, &is_finished, &dataset_size]() {
     //    while (true) {
-    //        this_thread::sleep_for(chrono::seconds(30));
+    //        this_thread::sleep_for(chrono::seconds(180));
     //        if (is_finished) {
     //            return ;
     //        }
@@ -284,7 +284,7 @@ experimental::optional<Dataset> generate_dataset(
     // Wait for all futures
     Dataset dataset;
     for (auto &d: async_dataset) {
-        auto & x = d->dataset;
+        auto  x = d->dataset;
         dataset.programs.reserve(x.int_output_programs.size() + x.list_output_programs.size() + dataset.programs.size());
         for (auto &y: x.int_output_programs) {
             dataset.programs.push_back(y);
@@ -295,7 +295,7 @@ experimental::optional<Dataset> generate_dataset(
         dataset.size += x.size;
     }
     is_finished = true;
-   // monitor.join();
+    //monitor.join();
 
     return Optional(dataset);
 }
