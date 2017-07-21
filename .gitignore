@@ -23,6 +23,7 @@
 !CMakeLists.txt
 !README.md
 !python/
+!python/data/
 !scripts/
 !model/
 !model/model.dat
