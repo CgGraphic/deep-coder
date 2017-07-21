@@ -10,6 +10,7 @@
 !src
 !*.py
 !*.sh
+!*.json
 
 ## header files
 !*.h
@@ -23,8 +24,8 @@
 !CMakeLists.txt
 !README.md
 !python/
-!python/data/
 !scripts/
+!python/data/
 !model/
 !model/model.dat
 !dataset/
