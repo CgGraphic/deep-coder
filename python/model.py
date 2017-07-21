@@ -6,6 +6,9 @@ from chainer import Link, Chain, ChainList
 import chainer.functions as F
 import chainer.links as L
 from chainer.training import extensions
+import settings as parameters
+
+print_dim = False
 
 class IntegerEmbed(Chain):
     def __init__(self, integer_range, embed_length):
@@ -15,6 +18,8 @@ class IntegerEmbed(Chain):
     def __call__(self, x):
         # Input : [ID ([0, ..., integer_range-1, NULL(integer_range)])]
         # Output: [[float]^embed_length]
+        if print_dim:
+            print("IntegerEmbed: x ",x.shape)
         return self.id(F.cast(x, np.int32))
 
 class ValueEmbed(Chain):
@@ -24,11 +29,19 @@ class ValueEmbed(Chain):
             self.integerEmbed = IntegerEmbed(integer_range, embed_length)
     def __call__(self, x):
         # Input: [Value([type-vector (valueID)*])]
-        # Output: [[double+]]
+        # Output: [[doublshapee+]]
         (n1, n2) = x.shape
+        if print_dim:
+            print("ValueEmbed: n1,n2 ",n1,n2)
         (t, l) = F.split_axis(x, [2], 1)
+        if print_dim:
+            print("ValueEmbed: t,l ",t.shape,l.shape)
         embedL_ = self.integerEmbed(l)
+        if print_dim:
+            print("ValueEmbed: embedL_ ",embedL_.shape)
         embedL = embedL_.reshape([n1, int(embedL_.size / n1)])
+        if print_dim:
+            print("ValueEmbed: embedL_ ",embedL_.shape)
         return F.concat((t, embedL))
 
 class ExampleEmbed(Chain):
@@ -39,9 +52,16 @@ class ExampleEmbed(Chain):
     def __call__(self, x):
         # Input: [Example([Value])]
         # Output: [[double+]]
+        # n1 一共多少输入输出对 n2 每一个输入输出中一共有多少数据  input_num + 1(output_number), n3 每一个数据的维度
         (n1, n2, n3) = x.shape
+        if print_dim:
+            print("ExampleEmbed: n1,n2,n3 ",n1,n2,n3)
         x1 = x.reshape(n1 * n2, n3)
+        if print_dim:
+            print("ExampleEmbed: x1 ",x1.shape)
         x_ = self.valueEmbed(x1)
+        if print_dim:
+            print("ExampleEmbed: x_ ",x_.shape,x_.size)
         return x_.reshape([n1, int(x_.size / n1)])
 
 class Encoder(Chain):
@@ -56,8 +76,11 @@ class Encoder(Chain):
         # Input: [Example]
         # Output: [[double+]]
         e = self.embed(x)
-
+        if print_dim:
+            print("Encoder",e.shape)
         x1 = F.sigmoid(self.h1(e))
+        if print_dim:
+            print(x1.shape)
         x2 = F.sigmoid(self.h2(x1))
         x3 = F.sigmoid(self.h2(x2))
         return x3
@@ -85,71 +108,22 @@ class DeepCoder(Chain):
         # Input: [[Example]]
         # Output: [[double]+(attribute before sigmoid)]
         (data_num, example_num, n3, n4) = x.shape
+        if print_dim:
+            print("DeepCoder x",x.shape)
         x1 = self.encoder(x.reshape(data_num * example_num, n3, n4))
         (_, vec_length) = x1.shape
         x2 = self.decoder(x1.reshape(data_num, example_num, vec_length))
+        if print_dim:
+            print("DeepCoder x2",x2.shape,x1.shape)
         return x2
 
-input_num = 3
-embed_length = 8 
-integer_min = -100
-integer_max = 100
-integer_range = integer_max - integer_min + 1 #integerの個数
-example_num = 5
-list_length = 10
-hidden_layer_width = 128 
-attribute_width = 34
+
 
 def gen_model():
-    embed = ExampleEmbed(input_num, integer_range, embed_length)
-    encoder = Encoder(embed, hidden_layer_width)
-    decoder = Decoder(attribute_width)
-    deepCoder = DeepCoder(encoder, decoder, example_num)
+    embed = ExampleEmbed(parameters.input_num, parameters.integer_range, parameters.embed_length)
+    encoder = Encoder(embed, parameters.hidden_layer_width)
+    decoder = Decoder(parameters.attribute_width)
+    deepCoder = DeepCoder(encoder, decoder,parameters.example_num)
     return deepCoder
 
-def convert_integer(integer):
-    return integer -integer_min # integer_min -> 0
-def type_vector(value):
-    if isinstance(value, list):
-        return [0, 1]
-    elif isinstance(value, int):
-        return [1, 0]
-    else:
-        return [0, 0]
-def convert_value(value):
-    # type vector
-    t = type_vector(value)
-    if isinstance(value, int):
-        value = [value]
-    elif isinstance(value, list):
-        value = value
-    else:
-        value = []
-    value = [convert_integer(x) for x in value]
-    # Fill NULL (integer_range)
-    if len(value) < list_length:
-        add = [integer_range] * (list_length - len(value))
-        value.extend(add)
-    t.extend(value)
-    return np.array(t, dtype=np.float32)
 
-def convert_example(example):
-    # Fill NULL input
-    input = example['input']
-    if len(input) < input_num:
-        add = [""] * (input_num - len(input))
-        input.extend(add)
-    output = example['output']
-    x = [convert_value(y) for y in input]
-    x.extend([convert_value(output)])
-    return np.array(x)
-
-def convert_each_data(data):
-    examples = data['examples']
-    # Convert
-    examples2 = np.array([convert_example(x) for x in examples])
-    attrs = np.array(data['attribute'], dtype=np.int32)
-    return examples2, attrs
-
-def preprocess_json(data):
-    return [convert_each_data(x) for x in data]

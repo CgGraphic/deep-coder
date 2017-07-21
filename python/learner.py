@@ -10,6 +10,9 @@ import json
 import sys
 import traceback
 import model as M
+import json_data_process as jp
+import settings as parameters
+from PIL import Image
 
 class Model(Chain):
     def __init__(self, deepCoder):
@@ -19,7 +22,10 @@ class Model(Chain):
     def __call__(self, input_, output):
         actual = self.deepCoder(Variable(input_))
         expected = Variable(output)
+
         loss = F.sigmoid_cross_entropy(actual, expected)
+        print(actual.shape,expected.shape,loss)
+        #print(actual[0],expected[0])
         report({'loss': loss}, self)
         return loss
 
@@ -35,17 +41,22 @@ class Dataset(chainer.dataset.DatasetMixin):
 deepCoder = M.gen_model()
 model = Model(deepCoder)
 
-f = open(sys.argv[1], 'r')
+file_name = "./data/program_data_2.json"
+store_file = "parameter.npz"
+
+f = open(file_name, 'r')
 x = json.load(f)
-y = M.preprocess_json(x)
+data = jp.preprocess_json(x)
 
-print(len(y))
 
-l1 = [e for e in range(0, len(y)) if e % 100 != 0]
-l2 = [e for e in range(0, len(y)) if e % 100 == 0]
 
-train = Dataset([y[e] for e in l1])
-test = Dataset([y[e] for e in l2])
+np.set_printoptions(threshold=sys.maxsize)
+
+l1 = [e for e in range(0, len(data)) if e % 100 != 0]
+l2 = [e for e in range(0, len(data)) if e % 100 == 0]
+
+train = Dataset([data[e] for e in l1])
+test = Dataset([data[e] for e in l2])
 
 try:
     train_iter = iterators.SerialIterator(train, batch_size=100, shuffle=True)
@@ -65,7 +76,9 @@ try:
     trainer.extend(extensions.ProgressBar())
 
     trainer.run()
-    serializers.save_npz(sys.argv[2], deepCoder)
+    serializers.save_npz(store_file, deepCoder)
+
+
 
 except:
     print(traceback.format_exc())

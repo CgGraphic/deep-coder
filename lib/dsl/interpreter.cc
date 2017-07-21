@@ -624,15 +624,16 @@ namespace dsl {
     experimental::optional <Output> eval(const Program &program, const Input &input) {
         auto env = Environment({}, input);
         for (const auto& s: program) {
-            auto next = proceed_nocpy(s, env);
+            auto next = proceed(s, env);
 #ifdef USE_OPTION
             if (!next) {
                 return {};
             }
 #else
-			if (!next) {
+			if (!next.first) {
 				return {};
 			}
+			env = next.second;
 #endif
            
         }
