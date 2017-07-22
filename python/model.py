@@ -15,6 +15,7 @@ class IntegerEmbed(Chain):
         super(IntegerEmbed, self).__init__()
         with self.init_scope():
             self.id = L.EmbedID(integer_range + 1, embed_length)
+
     def __call__(self, x):
         # Input : [ID ([0, ..., integer_range-1, NULL(integer_range)])]
         # Output: [[float]^embed_length]
@@ -33,11 +34,15 @@ class ValueEmbed(Chain):
         (n1, n2) = x.shape
         if print_dim:
             print("ValueEmbed: n1,n2 ",n1,n2)
+            np.save('chainer/value_tobe_embed_x.npy',np.array(x.data))
         (t, l) = F.split_axis(x, [2], 1)
         if print_dim:
             print("ValueEmbed: t,l ",t.shape,l.shape)
+            np.save('chainer/value_split_t.npy', np.array(t.data))
+            np.save('chainer/value_split_l.npy', np.array(l.data))
         embedL_ = self.integerEmbed(l)
         if print_dim:
+            #print(embedL_)
             print("ValueEmbed: embedL_ ",embedL_.shape)
         embedL = embedL_.reshape([n1, int(embedL_.size / n1)])
         if print_dim:
@@ -62,6 +67,7 @@ class ExampleEmbed(Chain):
         x_ = self.valueEmbed(x1)
         if print_dim:
             print("ExampleEmbed: x_ ",x_.shape,x_.size)
+            np.save('chainer/embed_x_.npy',np.array(x_.data))
         return x_.reshape([n1, int(x_.size / n1)])
 
 class Encoder(Chain):
@@ -75,11 +81,15 @@ class Encoder(Chain):
     def __call__(self, x):
         # Input: [Example]
         # Output: [[double+]]
+        if print_dim:
+            np.save('chainer/encoder_x.npy',np.array(x.data))
         e = self.embed(x)
         if print_dim:
             print("Encoder",e.shape)
+            np.save('chainer/e.npy',np.array(e.data))
         x1 = F.sigmoid(self.h1(e))
         if print_dim:
+            print(self.h1.W.shape,self.h1.b.shape)
             print(x1.shape)
         x2 = F.sigmoid(self.h2(x1))
         x3 = F.sigmoid(self.h2(x2))

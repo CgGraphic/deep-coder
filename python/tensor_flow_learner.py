@@ -12,17 +12,18 @@ from PIL import Image
 class Model(object):
     def __init__(self,deepcoder):
         self.deepcoder = deepcoder
-        self.input = tf.placeholder(tf.int32,shape=[100,parameters.example_num,parameters.input_num+1,parameters.list_length+2])
-        self.output = tf.placeholder(tf.int32,shape=[100,parameters.attribute_width])
+        self.input = tf.placeholder(tf.int32,shape=[None,parameters.example_num,parameters.input_num+1,parameters.list_length+2])
+        self.output = tf.placeholder(tf.int32,shape=[None,parameters.attribute_width])
         self.output = tf.to_float(self.output)
         self.traind_output = self.deepcoder(self.input)
 
-        self.predictor_out=  tf.sigmoid(self.traind_output)
+        self.predictor_out = tf.sigmoid(self.traind_output)
         print(self.traind_output)
         print(self.output)
-        self.loss = tf.losses.sigmoid_cross_entropy( self.traind_output,self.output)
-
-        self.train_step = tf.train.GradientDescentOptimizer(0.01).minimize(self.loss)
+        self.loss = tf.losses.sigmoid_cross_entropy( self.output,self.traind_output)
+        tf.summary.scalar('cross_entropy', self.loss)
+        self.merged = tf.summary.merge_all()
+        self.train_step = tf.train.AdamOptimizer(0.01).minimize(self.loss)
 
 
 
@@ -47,40 +48,67 @@ l1 = np.array([e for e in range(0, len(y)) if e % 100 != 0])
 l2 = np.array([e for e in range(0, len(y)) if e % 100 == 0])
 
 np.set_printoptions(threshold=sys.maxsize)
-session = tf.Session()
+
+
+
+
+
+
+train_writer = tf.summary.FileWriter('./result/',
+                                      tf.InteractiveSession().graph)
+session = tf.InteractiveSession()
 session.run(tf.global_variables_initializer())
+batch = 30
+
+# origin_image = [0.0] * len(y)  * parameters.attribute_width
+# predict_image = [0.0] * parameters.attribute_width * len(y)
 for i in range(0,parameters.epoch):
     shuffle(l1)
 
     total_cost = 0
-    for j in range(0,int(len(l1)/100)-1):
-        indices = l1[j*100:min((j+1)*100,len(l1))]
+    for j in range(0,int(len(l1)/batch)-1):
+        indices = l1[j*batch:min((j+1)*batch,len(l1))]
+        #print(indices)
         train_input = x[indices]
         output_expected = y[indices]
-        _,trained_output,expected_output,loss = session.run([model.train_step,model.traind_output,model.output,model.loss],{model.input :train_input,model.output : output_expected})
-        #print(cost)
+        _,trained_output,expected_output,loss,preditor_out,merged = session.run([model.train_step,model.traind_output,model.output,model.loss,model.predictor_out,model.merged],{model.input :train_input,model.output : output_expected})
+
         total_cost += loss
-        #if j == 0:
-            #print(trained_output)
-            #print(expected_output)
-    print("Epoch: ",i,"Cost: ",total_cost/len(l1))
+        train_writer.add_summary(merged,i)
+        # if  i == parameters.epoch - 1:
+        #     for k in range(0,expected_output.shape[0]):
+        #         for l in range(0,expected_output.shape[1]):
+        #             origin_image[indices[k] * parameters.attribute_width + l] = expected_output[k][l] * 255
+        #             predict_image[indices[k]* parameters.attribute_width + l] = preditor_out[k][l] * 255
 
-
+    print("Epoch: ",i,"Cost: ",total_cost*batch/len(l1))
+train_writer.close()
 ## Begin Predictor
+# ori_img = Image.new('L',size=(parameters.attribute_width,int(len(origin_image)/parameters.attribute_width )))
+# pre_img = Image.new('L',size=(parameters.attribute_width,int(len(predict_image)/parameters.attribute_width)))
+#
+# ori_img.putdata(origin_image)
+# pre_img.putdata(predict_image)
+# ori_img.save("tf_origin.bmp")
+# pre_img.save("tf_predic.bmp")
 
 origin_image = []
 predict_image = []
 l1 = [e for e in range(0, len(y))]
-for j in range(0,int(len(x)/100)-1):
-    indices = l1[j*100:min((j+1)*100,len(l1))]
+for j in range(0,int(len(x)/batch)-1):
+    indices = l1[j*batch:min((j+1)*batch,len(l1))]
     train_input = x[indices]
     expected_output = y[indices]
-    print(expected_output.shape)
+    #print(expected_output.shape,train_input.shape)
     trained_output = session.run([model.predictor_out],{model.input:train_input})
+
     trained_output = np.array(trained_output)
+    #print(trained_output.shape)
     trained_output = np.squeeze(trained_output)
+    #print(trained_output.shape)
+    #print(trained_output)
     expected_output = np.squeeze(expected_output)
-    for  k in range(0,100):
+    for  k in range(0,batch):
         for i in range(0,parameters.attribute_width):
             origin_image.append(expected_output[k][i] *255)
             predict_image.append(trained_output[k][i] * 255)
