@@ -6,6 +6,8 @@ import tensorflow as tf
 import settings as parameters
 import sys
 
+print_debug = False
+
 def variable_summaries(var):
   """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
   with tf.name_scope('summaries'):
@@ -22,7 +24,8 @@ class IntergerEmbed(object):
     # Embedding set
     def __init__(self,integer_range,embed_length):
         self.embeding = tf.Variable(tf.random_normal([integer_range + 1,embed_length]))
-        print(self.embeding)
+        if print_debug:
+            print(self.embeding)
     # Call Embedding
     def __call__(self,x):
         return tf.nn.embedding_lookup(self.embeding,x)
@@ -42,17 +45,20 @@ class ValueEmbed(object):
             (batch,example,io_number,io_element_number) = x.shape
             # 将数据的type 分割出来 ,t =[n1,2] l = [n1,n2-2]
             (t,l) = tf.split(x,[2,10],3)
-            print("ValueEmbed T,L",t.shape,l.shape)
+            if print_debug:
+                print("ValueEmbed T,L",t.shape,l.shape)
             embed = self.interger_embed(l)
 
             variable_summaries(embed)
-
-            print("Embed",embed.shape)
+            if print_debug:
+                print("Embed",embed.shape)
             shape = embed.get_shape().as_list()
             embed = tf.reshape(embed,[-1,shape[1],shape[2],shape[3] * shape[4]])
-            print("Embed",embed.shape)
+            if print_debug:
+                print("Embed",embed.shape)
             feature =  tf.concat([tf.to_float(t),embed],3)
-            print("Feature ",feature.shape)
+            if print_debug:
+                print("Feature ",feature.shape)
             return  feature
 
 class ExampleEmbed(object):
@@ -63,13 +69,16 @@ class ExampleEmbed(object):
         with tf.name_scope('ExampleEmbed'):
             (batch,example,io_number,io_element_number) = x.shape
             x1 = x
-            print("ExampleEmbed x1",x1.shape)
+            if print_debug:
+                print("ExampleEmbed x1",x1.shape)
             x_ =self.valueEmbed(x1)
-            print("ExampleEmbed x_",x_.shape)
+            if print_debug:
+                print("ExampleEmbed x_",x_.shape)
             shape = x_.get_shape().as_list()
 
             x_ = tf.reshape(x_,[-1,shape[1],shape[2]*shape[3]])
-            print("ExampleEmbed x_",x_.shape)
+            if print_debug:
+                print("ExampleEmbed x_",x_.shape)
 
             return x_
 
@@ -87,7 +96,8 @@ class Encoder(object):
     def __call__(self,x):
         with tf.name_scope('Encoder'):
             e = self.embed(x)
-            print("Encoder e",e.shape)
+            if print_debug:
+                print("Encoder e",e.shape)
 
             shape = e.get_shape().as_list()
 
@@ -108,8 +118,8 @@ class Encoder(object):
                 dense2 = tf.nn.sigmoid(tf.matmul(dense1,w_2) + b_2)
                 dense3 = tf.nn.sigmoid(tf.matmul(dense2,w_3) + b_3)
                 after_hidden.append(dense3)
-
-            print(after_hidden)
+            if print_debug:
+                print(after_hidden)
             after_stack = tf.stack(after_hidden,axis=1)
 
             variable_summaries(w_1)
@@ -138,16 +148,19 @@ class Decoder(object):
     def __call__(self, x):
         with tf.name_scope('Decoder'):
             shape = x.get_shape().as_list()
-            print("Decoder x:",x.shape)
+            if print_debug:
+                print("Decoder x:",x.shape)
             x1 = tf.reduce_mean(x,1)
-            print("Decoder x1:",x1.shape)
+            if print_debug:
+                print("Decoder x1:",x1.shape)
             w1 = weight_variable([parameters.hidden_layer_width,self.units])
             b1 = bias_variable([self.units])
             x2 = tf.matmul(x1,w1) + b1
 
             variable_summaries(w1)
             variable_summaries(b1)
-            print(w1,b1,x2)
+            if print_debug:
+                print(w1,b1,x2)
             #x2 = tf.contrib.layers.fully_connected(inputs=x1,num_outputs=self.units,activation_fn=None)
             return  x2
 
@@ -158,9 +171,11 @@ class DeepCoder:
         self.example_number = example_number
     def __call__(self,x):
         (batch_number,example_num,io_number,io_ele_number) = x.shape
-        print("DeepCoder x",x.shape)
+        if print_debug:
+            print("DeepCoder x",x.shape)
         x1 = self.encoder(x)
-        print("DeepCoder x",x1.shape)
+        if print_debug:
+            print("DeepCoder x",x1.shape)
 
         x2 = self.decoder(x1)
         return x2
@@ -203,13 +218,7 @@ def gen_model():
 # print(s1)
 # print("\nhhh\n")
 # print(s2)
-np.set_printoptions(threshold=sys.maxsize)
-expected = np.load('expect.npy')
-actual = np.load('actual.npy')
 
-cross = tf.losses.sigmoid_cross_entropy(expected,actual)
-sess = tf.Session()
-print(cross.eval(session=sess))
 
 
 

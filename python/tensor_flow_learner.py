@@ -35,7 +35,8 @@ class Model(object):
 deepCoder = tf_model.gen_model()
 model = Model(deepCoder)
 
-file_name = "./data/program_data_2.json"
+file_name = "./data/program3_ppl.json"
+T = 3
 store_file = "parameter.npz"
 
 f = open(file_name, 'r')
@@ -66,7 +67,7 @@ for i in range(0,parameters.epoch):
     shuffle(l1)
 
     total_cost = 0
-    for j in range(0,int(len(l1)/batch)-1):
+    for j in range(0,int(len(l1)/batch)):
         indices = l1[j*batch:min((j+1)*batch,len(l1))]
         #print(indices)
         train_input = x[indices]
@@ -92,34 +93,38 @@ train_writer.close()
 # ori_img.save("tf_origin.bmp")
 # pre_img.save("tf_predic.bmp")
 
+only_test_set = True
+
+
 origin_image = []
 predict_image = []
-l1 = [e for e in range(0, len(y))]
-for j in range(0,int(len(x)/batch)-1):
-    indices = l1[j*batch:min((j+1)*batch,len(l1))]
-    train_input = x[indices]
-    expected_output = y[indices]
-    #print(expected_output.shape,train_input.shape)
-    trained_output = session.run([model.predictor_out],{model.input:train_input})
+if only_test_set is False:
+    l2 = [e for e in range(0, len(y))]
 
-    trained_output = np.array(trained_output)
+indices = l2
+train_input = x[indices]
+expected_output = y[indices]
+    #print(expected_output.shape,train_input.shape)
+trained_output = session.run([model.predictor_out],{model.input:train_input})
+
+trained_output = np.array(trained_output)
     #print(trained_output.shape)
-    trained_output = np.squeeze(trained_output)
+trained_output = np.squeeze(trained_output)
     #print(trained_output.shape)
     #print(trained_output)
-    expected_output = np.squeeze(expected_output)
-    for  k in range(0,batch):
-        for i in range(0,parameters.attribute_width):
-            origin_image.append(expected_output[k][i] *255)
-            predict_image.append(trained_output[k][i] * 255)
+expected_output = np.squeeze(expected_output)
+for  k in range(0,len(l2)):
+    for i in range(0,parameters.attribute_width):
+        origin_image.append(expected_output[k][i] *255)
+        predict_image.append(trained_output[k][i] * 255)
 
 ori_img = Image.new('L',size=(parameters.attribute_width,int(len(origin_image)/parameters.attribute_width)))
 pre_img = Image.new('L',size=(parameters.attribute_width,int(len(predict_image)/parameters.attribute_width)))
 
 ori_img.putdata(origin_image)
 pre_img.putdata(predict_image)
-ori_img.save("tf_origin.bmp")
-pre_img.save("tf_predic.bmp")
+ori_img.save("./trained_result/tf_origin_"+str(T)+"_"+str(batch)+"_"+str(len(l2))+".bmp")
+pre_img.save("./trained_result/tf_predic_"+str(T)+"_"+str(batch)+"_"+str(len(l2)) + ".bmp")
 
 
 
